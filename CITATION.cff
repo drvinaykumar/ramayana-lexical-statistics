@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this dataset or code, please cite it as below."
+title: "Text Analysis of the Valmiki Ramayana with Computational Linguistic Techniques: Data and Code"
+authors:
+  - family-names: "Kumar"
+    given-names: "Vinay"
+    affiliation: "Thapar School of Liberal Arts & Sciences, Thapar Institute of Engineering & Technology, Patiala, India"
+version: "1.1.0"
+date-released: "2026-07-19"
+license: MIT
+repository-code: "https://github.com/USERNAME/ramayana-lexical-statistics"
+keywords:
+  - Valmiki Ramayana
+  - computational philology
+  - stylometry
+  - lexical statistics
+  - Sanskrit
+  - Zipf's law
+  - digital humanities
+preferred-citation:
+  type: article
+  title: "Text Analysis of the Valmiki Ramayana with Computational Linguistic Techniques"
+  authors:
+    - family-names: "Kumar"
+      given-names: "Vinay"
+  year: 2026
+  journal: "[journal name, volume, pages — update on publication]"

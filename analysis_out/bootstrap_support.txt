@@ -1,0 +1,3 @@
+multinomial bootstrap, 200 resamples, Delta(300 MFW), average linkage
+{Bala, Uttara} cluster support:            94%
+{Kishkindha, Sundara, Yuddha} support:     63%
