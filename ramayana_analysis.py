@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Lexical-statistical analysis of the Valmiki Ramayana
-====================================================
+Lexical-statistical analysis of the Valmiki Ramayana  (v2.0)
+===========================================================
 Reproduces every number, table, and figure in the manuscript
 "Text Analysis of the Valmiki Ramayana with Computational Linguistic Techniques".
 
@@ -43,58 +43,55 @@ import matplotlib.pyplot as plt
 SRC   = sys.argv[1] if len(sys.argv) > 1 else "Ramayan_copy.xlsx"
 OUT   = "analysis_out"
 COLS  = ["bal", "ayodya", "arany", "kiskndha", "sundar", "yuddh", "uttar"]
+# Plot labels with IAST diacritics (CSV outputs keep plain ASCII names)
+LABEL = {"Bala": "Bāla", "Ayodhya": "Ayodhyā", "Aranya": "Araṇya", "Kishkindha": "Kiṣkindhā",
+         "Sundara": "Sundara", "Yuddha": "Yuddha", "Uttara": "Uttara"}
 NAMES = {"bal": "Bala", "ayodya": "Ayodhya", "arany": "Aranya",
          "kiskndha": "Kishkindha", "sundar": "Sundara",
          "yuddh": "Yuddha", "uttar": "Uttara"}
 os.makedirs(OUT, exist_ok=True)
 
 # ----------------------------------------------------------------------
-# 1. Cleaning  (paper, Section 2)
+# 1. Reconstruction and cleaning  (paper, Section 2)
+#
+# The sheet "With repetition" is seven per-kanda frequency lists stacked
+# vertically (one block per kanda, each sorted by frequency, each starting
+# with "ca"). Within block k ONLY column k is genuine: the other six columns
+# were filled by a case-INSENSITIVE lookup (e.g. Excel VLOOKUP), which is
+# invalid for Harvard-Kyoto, where case is phonemic (a/A = a/aa, t/T, s/S...).
+# The correct matrix is therefore rebuilt from the diagonal blocks only.
 # ----------------------------------------------------------------------
-def is_junk(w: str) -> bool:
-    """Verse locators (e.g. 1076018c), punctuation/markup, header artefacts."""
-    w = str(w)
-    if re.fullmatch(r"\d{7}[ac]", w):          # GRETIL verse references
-        return True
-    if not re.fullmatch(r"[a-zA-Z']+", w):     # symbols, digits
-        return True
-    if w == "ASCII":                           # e-text header artefact
-        return True
-    return False
+HEADER_TOKENS = {"ASCII", "Encoding", "Last", "Mon", "Wed", "Jun", "Jul",
+                 "Ramayana", "Yuddhakanda", "Uttarakanda"}   # e-text header lines
+
+
+def is_word(w) -> bool:
+    """Harvard-Kyoto word (letters, avagraha apostrophe), not header text."""
+    if not isinstance(w, str):
+        return False
+    if re.fullmatch(r"\d{7}[a-z]?", w):          # GRETIL verse locators, e.g. 1076018c
+        return False
+    if not re.fullmatch(r"[A-Za-z']+", w):         # punctuation such as ; &
+        return False
+    return w not in HEADER_TOKENS
 
 
 def load_and_clean(path: str) -> pd.DataFrame:
-    raw = pd.read_excel(path, sheet_name="With repetition")
-    raw = raw.dropna(subset=["Words"]).drop_duplicates()          # (iii) exact dup rows
-    raw = raw[~raw["Words"].map(is_junk)]                         # (i)+(ii) junk tokens
-    M = raw.groupby("Words")[COLS].max()                          # conflicting dup rows
-
-    # (iv) transliteration "twins": same case-folded form, identical vectors
-    #      or vectors agreeing in >= 6 of 7 kanda coordinates -> merge by max.
-    M = M.copy()
-    M["fold"] = M.index.str.lower()
-    rows = {}
-    def canonical(ws):        # prefer the variant not ending in mangled 'A'
-        return sorted(ws, key=lambda w: (w.endswith("A"), w))[0]
-    for _, grp in M.groupby("fold"):
-        idx = list(grp.index)
-        if len(idx) == 1:
-            rows[idx[0]] = grp.loc[idx[0], COLS].values
-            continue
-        used = set()
-        for i, w1 in enumerate(idx):
-            if w1 in used:
-                continue
-            cluster = [w1]
-            for w2 in idx[i + 1:]:
-                if w2 in used:
-                    continue
-                eq = (grp.loc[w1, COLS].values == grp.loc[w2, COLS].values).sum()
-                if eq >= 6:
-                    cluster.append(w2); used.add(w2)
-            used.add(w1)
-            rows[canonical(cluster)] = grp.loc[cluster, COLS].max().values
-    return pd.DataFrame.from_dict(rows, orient="index", columns=COLS).sort_index()
+    raw = pd.read_excel(path, sheet_name="With repetition",
+                        keep_default_na=False).reset_index(drop=True)   # keep HK tokens like "NA"
+    starts = raw.index[raw["Words"] == "ca"].tolist()        # first row of each block
+    assert len(starts) == 7, "expected seven kanda blocks"
+    bounds = starts + [len(raw)]
+    recs = []
+    for k, (a, b) in enumerate(zip(bounds[:-1], bounds[1:])):
+        blk = raw.iloc[a:b]
+        recs += [(w, COLS[k], int(n)) for w, n in zip(blk["Words"], blk[COLS[k]])]
+    L = pd.DataFrame(recs, columns=["w", "k", "n"])
+    L = L[L["w"].map(is_word)]
+    # a few forms occur twice inside one block (strings that differed only in
+    # invisible characters before export): their counts are summed.
+    M = L.groupby(["w", "k"])["n"].sum().unstack("k").reindex(columns=COLS)
+    return M.fillna(0).astype(int).sort_index()
 
 
 # ----------------------------------------------------------------------
@@ -209,8 +206,8 @@ def main():
     x, w = np.arange(7), .38
     ax.bar(x - w / 2, Ns, w, label="Tokens (N)", color="#8B0000")
     ax.bar(x + w / 2, Vs, w, label="Types (V)", color="#C9A227")
-    ax.set_xticks(x); ax.set_xticklabels(nm, rotation=20)
-    ax.set_title("Corpus size by kanda"); ax.legend(); ax.grid(axis="y", alpha=.3)
+    ax.set_xticks(x); ax.set_xticklabels([LABEL[n] for n in nm], rotation=20)
+    ax.set_title("Corpus size by kāṇḍa"); ax.legend(); ax.grid(axis="y", alpha=.3)
     plt.tight_layout(); plt.savefig(f"{OUT}/fig_sizes.png"); plt.close()
 
     fig, ax = plt.subplots(figsize=(7, 5), dpi=150)               # Figure 2
@@ -218,9 +215,9 @@ def main():
     ax.loglog(np.arange(1, len(fr) + 1), fr, lw=1.8, color="#8B0000", label="Whole corpus")
     for c in COLS:
         fk = np.sort(M[c][M[c] > 0].values)[::-1]
-        ax.loglog(np.arange(1, len(fk) + 1), fk, lw=.7, alpha=.55, label=NAMES[c])
+        ax.loglog(np.arange(1, len(fk) + 1), fk, lw=.7, alpha=.55, label=LABEL[NAMES[c]])
     ax.set_xlabel("Rank (log scale)"); ax.set_ylabel("Frequency (log scale)")
-    ax.set_title("Rank-frequency (Zipf) profile")
+    ax.set_title("Rank–frequency (Zipf) profile, Vālmīki Rāmāyaṇa")
     ax.legend(fontsize=7, ncol=2); ax.grid(alpha=.3, which="both")
     plt.tight_layout(); plt.savefig(f"{OUT}/fig_zipf.png"); plt.close()
 
@@ -241,8 +238,8 @@ def main():
                                    (cosmat(tfidf), "Cosine (TF-IDF weighted)")]):
         im = ax.imshow(mat.values, cmap="YlOrRd")
         ax.set_xticks(range(7)); ax.set_yticks(range(7))
-        ax.set_xticklabels(nm, rotation=45, ha="right", fontsize=8)
-        ax.set_yticklabels(nm, fontsize=8)
+        ax.set_xticklabels([LABEL[n] for n in nm], rotation=45, ha="right", fontsize=8)
+        ax.set_yticklabels([LABEL[n] for n in nm], fontsize=8)
         for i in range(7):
             for j in range(7):
                 ax.text(j, i, f"{mat.values[i, j]:.2f}", ha="center", va="center",
@@ -270,7 +267,7 @@ def frame_hypothesis_analyses(seed: int = 42, n_boot: int = 200, n_mfw: int = 30
     from scipy.spatial.distance import squareform
 
     rng = np.random.default_rng(seed)
-    M = pd.read_csv(f"{OUT}/word_by_kanda_matrix.csv", index_col=0)
+    M = pd.read_csv(f"{OUT}/word_by_kanda_matrix.csv", index_col=0, keep_default_na=False)
     nm = [NAMES[c] for c in COLS]
     M.columns = nm
     Ntok = M.sum(axis=0)
@@ -332,11 +329,12 @@ def frame_hypothesis_analyses(seed: int = 42, n_boot: int = 200, n_mfw: int = 30
 
     # ---- Figure 5: dendrogram ----
     fig, ax = plt.subplots(figsize=(7, 4.2), dpi=150)
-    dendrogram(Z0, labels=nm, ax=ax, color_threshold=0, link_color_func=lambda k: "#8B0000")
+    dendrogram(Z0, labels=[LABEL[n] for n in nm], ax=ax, color_threshold=0, link_color_func=lambda k: "#8B0000")
     ax.set_ylabel(f"Burrows's Delta ({n_mfw} MFW), average linkage")
-    ax.set_title("Stylometric clustering of the kandas")
-    ax.text(.02, .95, f"bootstrap support: {{Bala,Uttara}} {100*hits_bu/n_boot:.0f}%   "
-                      f"{{Kis.,Sun.,Yud.}} {100*hits_vanara/n_boot:.0f}%",
+    ax.set_ylim(0, ax.get_ylim()[1] * 1.15)            # headroom for the annotation
+    ax.set_title("Stylometric clustering of the kāṇḍas")
+    ax.text(.02, .95, f"bootstrap support: {{Bāla, Uttara}} {100*hits_bu/n_boot:.0f}%   "
+                      f"{{Kiṣk., Sund., Yud.}} {100*hits_vanara/n_boot:.0f}%",
             transform=ax.transAxes, fontsize=8, va="top")
     plt.xticks(rotation=20)
     plt.tight_layout(); plt.savefig(f"{OUT}/fig_dendrogram.png"); plt.close()

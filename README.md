@@ -6,11 +6,11 @@
 
 Data and code supplement for:
 
-> Kumar, V.; Upadhyay, R. (2026). *Text Analysis of the Vālmīki Rāmāyaṇa with Computational
+> Kumar, V. (2026). *Text Analysis of the Vālmīki Rāmāyaṇa with Computational
 > Linguistic Techniques.* [journal details to be added on publication]
 
 The repository contains a cleaned word-by-kāṇḍa frequency matrix of the
-Vālmīki Rāmāyaṇa (**200,697 tokens; 57,054 distinct surface word forms**) and a
+Vālmīki Rāmāyaṇa (**213,789 tokens; 61,664 distinct surface word forms**) and a
 single reproducible Python pipeline that computes every statistic, table, and
 figure reported in the paper: lexical diversity measures (TTR, Guiraud, Herdan,
 Maas, Yule's K), information-theoretic measures (Shannon entropy, Simpson
@@ -24,7 +24,7 @@ concentration, Gini), Zipf's and Heaps' law fits, and inter-kāṇḍa similarit
 ├── ramayana_analysis.py          # full pipeline: raw workbook → all outputs
 ├── requirements.txt
 ├── analysis_out/                 # pre-computed outputs (as used in the paper)
-│   ├── word_by_kanda_matrix.csv  # ★ the cleaned corpus (57,054 forms × 7 kāṇḍas)
+│   ├── word_by_kanda_matrix.csv  # ★ the reconstructed corpus (61,664 forms × 7 kāṇḍas)
 │   ├── stats_per_kanda.csv       # paper Tables 1 & 5
 │   ├── top_words.csv             # Table 2
 │   ├── spectrum.csv              # Table 3
@@ -53,23 +53,40 @@ the paper. Rows are surface word forms in **Harvard–Kyoto transliteration**
 
 | column | kāṇḍa | tokens |
 |---|---|---|
-| `bal` | Bāla | 20,590 |
-| `ayodya` | Ayodhyā | 34,823 |
-| `arany` | Araṇya | 22,247 |
-| `kiskndha` | Kiṣkindhā | 21,176 |
-| `sundar` | Sundara | 26,223 |
-| `yuddh` | Yuddha | 46,395 |
-| `uttar` | Uttara | 29,243 |
+| `bal` | Bāla | 21,695 |
+| `ayodya` | Ayodhyā | 37,444 |
+| `arany` | Araṇya | 23,646 |
+| `kiskndha` | Kiṣkindhā | 22,447 |
+| `sundar` | Sundara | 28,030 |
+| `yuddh` | Yuddha | 49,427 |
+| `uttar` | Uttara | 31,100 |
 
-**Provenance and cleaning.** Frequencies derive from the GRETIL electronic text
-of the Vālmīki Rāmāyaṇa (input by Muneo Tokunaga, revised by John D. Smith),
-tokenized on whitespace. Cleaning (implemented and documented in
-`ramayana_analysis.py`) removed verse-locator strings (e.g. `1076018c`),
-punctuation and header artefacts, exactly duplicated rows, and systematic
-transliteration twin variants (e.g. `ca`/`cA`) whose frequency vectors were
-identical or agreed in ≥ 6 of 7 kāṇḍa coordinates. Counts are of surface word
+**Provenance and reconstruction.** Frequencies derive from the electronic
+text of the Baroda Critical Edition (input by Muneo Tokunaga, converted and
+revised by John D. Smith), distributed at
+<https://bombay.indology.info/ramayana/welcome.html>, tokenized on whitespace. The source spreadsheet stacks seven
+per-kāṇḍa frequency lists; within each list only that kāṇḍa's own column is
+genuine, because the other columns were filled by a case-insensitive lookup that
+conflates Harvard–Kyoto forms differing only in case (e.g. `tasya`/`tasyA`).
+`ramayana_analysis.py` therefore rebuilds the matrix from the diagonal blocks,
+treating case as significant, and removes verse-locator strings (e.g.
+`1076018c`), punctuation, and e-text header tokens. Counts are of surface word
 forms, **not lemmata** — see the paper's Section 7 before comparing values
 against lemmatized corpora.
+
+**v2.0 note.** Version 1.x used a different cleaning step that read all seven
+columns as genuine and merged case-variant forms; it under-counted the corpus by
+about 6 %. All outputs in this release supersede v1.x.
+
+## Tokenizing the e-text directly
+
+`tokenize_etext.py` builds the matrix straight from the seven distributed ASCII
+files (`Ram01.txt` … `Ram07.txt`) and reports how it differs from the
+spreadsheet-derived matrix:
+
+```bash
+python tokenize_etext.py path/to/ascii_files analysis_out/word_by_kanda_matrix.csv
+```
 
 ## Reproducing the paper
 
@@ -89,26 +106,26 @@ the paper; every downstream statistic can be recomputed from
 
 ## Key results at a glance
 
-* Corpus: 200,697 tokens; 57,054 types; 69.6 % hapax legomena.
-* Zipf slope −0.88 (f ≥ 5, R² = 0.997); Heaps' law V = 2.91·N^0.812 (R² = 0.999).
-* Grammatical register nearly uniform across all seven books (Cramér's V ≈ 0.11;
+* Corpus: 213,789 tokens; 61,664 types; 70.2 % hapax legomena.
+* Zipf slope −0.88 (f ≥ 5, R² = 0.997); Heaps' law V = 2.77·N^0.818 (R² = 0.999).
+* Grammatical register nearly uniform across all seven books (Cramér's V ≈ 0.10;
   full-vector cosine 0.87–0.96).
 * Content vocabulary partitions the epic into narrative blocks; the disputed
   frame books **Bāla and Uttara show their strongest content affinity with each
   other**, and Kiṣkindhā–Sundara–Yuddha form a cohesive "vānara" cluster.
-* The frame-pair affinity survives four independent tests (Section 5.4 of the
-  paper): mutual nearest neighbors under **Burrows's Delta** (Δ = 0.968, the
-  matrix minimum); minimum **Jensen–Shannon divergence** (0.441 bits); **94 %
-  bootstrap cluster support** (200 multinomial resamples); and the strongest
-  size-adjusted enrichment of **exclusively shared vocabulary** (obs/exp = 1.49,
-  p ≈ 10⁻¹³), whose **G² keyness profile** is the language of sages, hermitage,
-  and formal address.
+* The frame-pair affinity holds across independent tests (Section 5.4 of the
+  paper): under **Burrows's Delta** Uttara is Bāla's nearest neighbour at every
+  feature-set size from 100 to 1,000 most frequent words; the pair clusters
+  together in **84–90 % of bootstrap resamples**; and it shows the highest
+  vocabulary overlap and the strongest size-adjusted enrichment of
+  **exclusively shared vocabulary** (obs/exp = 1.47, p < 10⁻¹²), whose
+  **G² keyness profile** is the language of sages, hermitage, and formal address.
 
 ## Citing
 
 Please cite the paper (see `CITATION.cff`; GitHub's **Cite this repository**
 button generates BibTeX/APA). If you use the dataset independently of the
-paper, cite this repository by URL and release tag (v1.1.0) and acknowledge
+paper, cite this repository by URL and release tag (v2.0) and acknowledge
 the GRETIL source text.
 
 ## Licenses

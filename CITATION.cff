@@ -5,7 +5,7 @@ authors:
   - family-names: "Kumar"
     given-names: "Vinay"
     affiliation: "Thapar School of Liberal Arts & Sciences, Thapar Institute of Engineering & Technology, Patiala, India"
-version: "1.1.0"
+version: "2.1.0"
 date-released: "2026-07-19"
 license: MIT
 repository-code: "https://github.com/USERNAME/ramayana-lexical-statistics"
